@@ -65,7 +65,7 @@ class ParserDNS(AbstractParser):
         selenium_path_element = self.to_xpath(input_data)
         ActionChains(self.driver).move_to_element(selenium_path_element).click().send_keys(self.product_name).perform()
 
-        
+
 
 a = ParserDNS("Москва", "geforce gtx 1650", "https://www.dns-shop.ru/")
 a.set_city()
