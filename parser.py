@@ -3,6 +3,9 @@ from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 import time
 import itertools
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 def xpath_soup(element):
@@ -23,6 +26,8 @@ class AbstractParser():
         self.city = city
         self.product_name = product_name
         self.driver = webdriver.Chrome(ChromeDriverManager().install())
+
+        wait = WebDriverWait(self.driver, 20)
         self.url = url
         self.soup = None
 
@@ -44,15 +49,23 @@ class ParserDNS(AbstractParser):
         self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
 
     def set_city(self):
-        city_soup = self.soup.find("p")
+        city_soup = self.soup.find("a" , {"class" : "w-choose-city-widget pseudo-link pull-right"})
         selenium_path_element = self.to_xpath(city_soup)
-        ActionChains(self.driver).move_to_element(selenium_path_element).click().send_keys(Keys.Enter).perform()
-        sleep(1)
+        ActionChains(self.driver).move_to_element(selenium_path_element).click().perform()
+
+        time.sleep(2)
+        self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+
+        city_soup = self.soup.find("input" , {"data-role" : "search-city"})
+        selenium_path_element = self.to_xpath(city_soup)
+        ActionChains(self.driver).move_to_element(selenium_path_element).click().send_keys(self.city).send_keys(Keys.ENTER).perform()
 
     def send_data(self):
-        input_data = self.soup.find("input" , {"class" : "ui-input-search__input ui-input-search__input_presearch"})
+        input_data = self.soup.find("a" , {"class" : "w-choose-city-widget pseudo-link pull-right"})
         selenium_path_element = self.to_xpath(input_data)
         ActionChains(self.driver).move_to_element(selenium_path_element).click().send_keys(self.product_name).perform()
+
+        
 
 a = ParserDNS("Москва", "geforce gtx 1650", "https://www.dns-shop.ru/")
 a.set_city()
