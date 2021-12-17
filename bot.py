@@ -1,6 +1,8 @@
 import logging
 import sqlite3
+import json
 from aiogram import Bot, Dispatcher, executor, types
+from difflib import SequenceMatcher
 from keyboards import *
 
 
@@ -18,6 +20,23 @@ cur.execute('''CREATE TABLE IF NOT EXISTS Users
                (id INTEGER, item TEXT, city TEXT, max_price INTEGER)''')
 
 users = {}
+
+with open('cities.json', encoding='utf8') as f:
+    cities = json.loads(f.read())
+
+
+def find_similar(s):
+    most_similar = 0
+    city = ''
+    
+    for i in cities:
+        if most_similar < SequenceMatcher(lambda x: x==" ", i.lower(), s.lower()).ratio():
+            most_similar = SequenceMatcher(lambda x: x==" ", i.lower(), s.lower()).ratio()
+            city = i
+
+    if SequenceMatcher(lambda x: x==" ", city.lower(), s.lower()).ratio() < 0.8:
+        return False
+    return city
 
 
 def add_watching(id, item, city, max_price):
