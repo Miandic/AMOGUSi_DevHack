@@ -1,6 +1,7 @@
 import logging
 import sqlite3
 from aiogram import Bot, Dispatcher, executor, types
+from keyboards import *
 
 
 API_TOKEN = '5072037847:AAEjOjkfrfrDtPqvr-o5adqlNTgb3NdPY2U'
@@ -20,7 +21,7 @@ users = {}
 
 
 def add_watching(id, item, city, max_price):
-    cur.execute(f'INSERT INTO Users VALUES ({id}, `{item}`, `{city}`, {max_price})')
+    cur.execute(f'INSERT INTO Users VALUES ({id}, "{item}", "{city}", {max_price})')
 
 
 @dp.message_handler(commands=['start', 'cancel'])
@@ -47,20 +48,29 @@ async def echo(msg: types.Message):
         user[1] = tx
 
     elif user[0] == 'item':
-        await msg.answer('Хотели бы вы выстовить ограничение на максимальную стоимость видеокарты?\nНачать заново: /cancel')
-        user[0] = 'max_price_question'
+        await msg.answer('Хотели бы вы выстовить ограничение на максимальную стоимость видеокарты?\nНачать заново: /cancel', reply_markup=max_price_question_kb)
         user[2] = tx
-
-    elif user[0] == 'max_price_question':
-        await msg.answer('Введите максимальную допуcтимую стоимость (в рублях)\nНачать заново: /cancel')
-        user[0] = 'max_price'
 
     elif user[0] == 'max_price':
         if set(tx) <= set('0123456789') and int(tx) < 10000000:
             add_watching(id, user[1], user[2], int(tx))
-            await msg.answer('Мы начали поиски вашей видеокарты.(^_^)\nНачать заново: /cancel')
+            await msg.answer('Мы начали поиски вашей видеокарты.(^_^)\nНачать заново: /start')
+            users[id] = ['', '', '']
         else:
             await msg.answer('Некорректно введена стоимость.')
+
+
+@dp.callback_query_handler()
+async def handle_callback(query: types.CallbackQuery):
+    id = query.from_user.id
+    if query.data == 'max_price_question_yes':
+        await bot.send_message(id, 'Введите максимальную допуcтимую стоимость (в рублях)\nНачать заново: /cancel')
+        users[id][0] = 'max_price'
+        await query.answer()
+    else:
+        add_watching(id, users[id][1], users[id][2], 1000000000)
+        await bot.send_message(id, 'Мы начали поиски вашей видеокарты.(^_^)\nНачать заново: /start')
+        users[id] = ['', '', '']
 
 
 if __name__ == '__main__':
