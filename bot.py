@@ -26,7 +26,6 @@ with open('cities.json', encoding='utf-8') as f:
 
 with open('dns_cities.json', encoding='utf-8') as f:
     dns_cities = json.loads(f.read())
-    print(dns_cities)
 
 
 def find_similar(s):
@@ -42,33 +41,30 @@ def find_similar(s):
             most_similar = SequenceMatcher(lambda x: x==" ", i.lower(), s).ratio()
             city = i
 
-
     if SequenceMatcher(lambda x: x==" ", city.lower(), s).ratio() < 0.8:
         return False
     return city
 
 
-def find_similar(s):
-    most_similar = 0
-    city = ''
+def send_json():
+    cur.execute(f'SELECT city from Users')
+    cities = cur.fetchall()
+    j = {}
 
-    s = s.lower()
+    for city in cities:
+        cur.execute(f'SELECT item from Users WHERE city = "{city[0]}"')
+        items = [i[0] for i in cur.fetchall()]
+        j[city[0]] = items
 
-    for i in cities:
-        if s == i.lower():
-            return True
-        if most_similar < SequenceMatcher(lambda x: x==" ", i.lower(), s).ratio():
-            most_similar = SequenceMatcher(lambda x: x==" ", i.lower(), s).ratio()
-            city = i
+    print(j)
 
-
-    if SequenceMatcher(lambda x: x==" ", city.lower(), s).ratio() < 0.8:
-        return False
-    return city
+    with open('data.json', 'w', encoding='utf-8') as f:
+        json.dump(j, f, ensure_ascii=False)
 
 
 def add_watching(id, item, city, max_price):
     cur.execute(f'INSERT INTO Users VALUES ({id}, "{item}", "{city}", {max_price})')
+    send_json()
 
 
 @dp.message_handler(commands=['start', 'cancel'])
@@ -94,15 +90,19 @@ async def echo(msg: types.Message):
         if city == False:
             await msg.answer('Я не могу найти такой город. Попробуйте еще раз!\nНачать заново: /cancel')
         elif city == True:
-            await msg.answer('Какую видеокарту вы ищите?\nНачать заново: /cancel')
-            user[0] = 'item'
-            user[1] = tx
+            if tx.lower() in dns_cities:
+                await msg.answer('Какую видеокарту вы ищите?\nНачать заново: /cancel')
+                user[0] = 'item'
+                user[2] = tx.lower()
+            else:
+                await msg.answer('Я не могу найти такой ААА АДНС КТ ДНС НЕТУ В ДНС. Попробуйте еще раз!\nНачать заново: /cancel')
         else:
             await msg.answer(f'Вы хотели ввести этот город: {city}\nВерно?\nНачать заново: /cancel', reply_markup=guessed_city_kb)
+            user[2] = city.lower()
 
     elif user[0] == 'item':
         await msg.answer('Хотели бы вы выстовить ограничение на максимальную стоимость видеокарты?\nНачать заново: /cancel', reply_markup=max_price_question_kb)
-        user[2] = tx
+        user[1] = tx
 
     elif user[0] == 'max_price':
         if set(tx) <= set('0123456789') and int(tx) < 10000000:
@@ -125,13 +125,16 @@ async def handle_callback(query: types.CallbackQuery):
     elif query.data == 'max_price_question_no':
         add_watching(id, user[1], user[2], 1000000000)
         await bot.send_message(id, 'Мы начали поиски вашей видеокарты.(^_^)\nНачать заново: /start')
-        user = ['', '', '']
+        users[id] = ['', '', '']
     elif query.data == 'guessed_city_yes':
-        await bot.send_message(id, 'Какую видеокарту вы ищите?\nНачать заново: /cancel')
-        user[0] = 'item'
-        user[1] = tx
+        if user[2].lower() in dns_cities:
+            await bot.send_message(id, 'Какую видеокарту вы ищите?\nНачать заново: /cancel')
+            user[0] = 'item'
+        else:
+            await bot.send_message(id, 'Я не могу найти такой ААА АДНС КТ ДНС НЕТУ В ДНС. Попробуйте еще раз!\nНачать заново: /cancel')
     elif query.data == 'guessed_city_no':
         await bot.send_message(id, 'Попробуйте еще раз!\nНачать заново: /cancel')
+        user[2] = ''
 
 
 if __name__ == '__main__':
