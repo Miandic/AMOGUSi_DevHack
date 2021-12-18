@@ -6,7 +6,7 @@ from difflib import SequenceMatcher
 from keyboards import *
 
 
-API_TOKEN = '5072037847:AAEjOjkfrfrDtPqvr-o5adqlNTgb3NdPY2U'
+API_TOKEN = '5072037847:AmongAsEjOjkfrfrDtPqvr-o5adqlNTgb3NdPY2U'
 
 logging.basicConfig(level=logging.INFO)
 
