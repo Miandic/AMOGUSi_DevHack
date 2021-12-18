@@ -45,7 +45,7 @@ class AbstractParser():
         time.sleep(3)
 
 
-    def send_data(self):
+    def send_data_to_site(self):
         pass
 
     def to_xpath(self, name):
@@ -68,7 +68,7 @@ class ParserDNS(AbstractParser):
 
 
 
-    def set_city(self):
+    def send_data_to_site(self):
         city_soup = self.soup.find("a", {"class": "w-choose-city-widget pseudo-link pull-right"})
         selenium_path_element = self.to_xpath(city_soup)
         ActionChains(self.driver).move_to_element(selenium_path_element).click().perform()
@@ -102,10 +102,42 @@ class ParserRegard(AbstractParser):
     def __init__(self, city, product_name, url  ):
         AbstractParser.__init__(self, city, product_name, url)
 
+        self.returned_data_json["market"] = "Regard"
+    def send_data_to_site(self):
+        input_product_soup = self.soup.find("input" , {"id" : "query"})
+
+        input_product_selenium = self.to_xpath(input_product_soup)
+        ActionChains(self.driver).move_to_element(input_product_selenium).click().send_keys(self.product_name).send_keys(Keys.ENTER).perform()
+        time.sleep(1)
+        self.soup = BeautifulSoup(self.driver.page_source , 'html.parser')
+
+        sort_soup = self.soup.find("a" , {"onclick" : "sorting('price_asc')"})
+        sort_selenium = self.to_xpath(sort_soup)
+        ActionChains(self.driver).move_to_element(sort_selenium).click().perform()
+        time.sleep(1)
+
+    def read_data(self):
+        self.soup = BeautifulSoup(self.driver.page_source , 'html.parser')
+
+        price_div_soup  = self.soup.find("div" , {"class" :"price"})
+        if (price_div_soup == None):
+
+            self.returned_data_json["is_available"] = False
+            return
 
 
+        price_text_raw = price_div_soup.findAll("span")[1]
+        price_text_raw = price_text_raw.text
+        
+        price_text = ""
+        for  i in  range(len(price_text_raw)):
+            if (price_text_raw[i].isnumeric()):
+                price_text+=price_text_raw[i]
 
-a = ParserDNS("Москва", "GeForce RTX 3060 Ti", "https://www.dns-shop.ru/")
-a.set_city()
+        self.returned_data_json["price"] = price_text
+
+
+a = ParserRegard("Москва", "GeForce RTX 3060 Ti", "https://www.regard.ru/")
+a.send_data_to_site()
 a.read_data()
 print(a.returned_data_json)
