@@ -128,16 +128,40 @@ class ParserRegard(AbstractParser):
 
         price_text_raw = price_div_soup.findAll("span")[1]
         price_text_raw = price_text_raw.text
-        
+
         price_text = ""
         for  i in  range(len(price_text_raw)):
             if (price_text_raw[i].isnumeric()):
                 price_text+=price_text_raw[i]
 
         self.returned_data_json["price"] = price_text
+class ParserCitilink(AbstractParser):
+    def __init__(self, city, product_name, url  ):
+        AbstractParser.__init__(self, city, product_name, url)
+    def send_data_to_site(self):
+        button_city_soup = self.soup.find("button" , {"class" : "js--CitiesSearch-trigger MainHeader__open-text TextWithIcon"})
+        button_city_selenium = self.to_xpath(button_city_soup)
+        ActionChains(self.driver).move_to_element(button_city_selenium).click().perform()
+
+        time.sleep(2)
+        self.soup = BeautifulSoup(self.driver.page_source , 'html.parser')
+
+        input_city_soup = self.soup.find("input" , {"name" :"search_text" })
+        input_city_selenium = self.to_xpath(input_city_soup)
+        ActionChains(self.driver).move_to_element(input_city_selenium).click().send_keys(self.city).perform()
+
+        time.sleep(2)
+        self.soup = BeautifulSoup(self.driver.page_source , 'html.parser')
 
 
-a = ParserRegard("Москва", "GeForce RTX 3060 Ti", "https://www.regard.ru/")
+        click_city_soup = self.soup.find("span" , {"class" :"CitiesSearch__highlight" })
+        click_city_selenium = self.to_xpath(click_city_soup)
+        ActionChains(self.driver).move_to_element(click_city_selenium).click().perform()
+        
+
+
+
+a = ParserCitilink("Москва", "GeForce RTX 3060 Ti", "https://www.citilink.ru/")
 a.send_data_to_site()
-a.read_data()
+#a.read_data()
 print(a.returned_data_json)
