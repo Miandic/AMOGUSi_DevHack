@@ -8,6 +8,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 import json
 
+
 def xpath_soup(element):
     components = []
     child = element if element.name else element.parent
@@ -24,18 +25,25 @@ def xpath_soup(element):
 class AbstractParser():
     def __init__(self, city, product_name, url):
         self.returned_data_json ={
-                "market": "DNS"
+                "market": "DNS",
                 "name" : product_name,
                 "is_available" : True,
                 "price" : "0"
 
         }
-
+        self.url = url
         self.city = city
         self.product_name = product_name
         self.driver = webdriver.Chrome(ChromeDriverManager().install())
 
-        wait = WebDriverWait(self.driver, 20)
+
+        self.driver.get(self.url)
+        self.driver.maximize_window()
+        WebDriverWait(self.driver, 20)
+        self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+
+        time.sleep(3)
+
 
     def send_data(self):
         pass
@@ -50,19 +58,15 @@ class AbstractParser():
 
 class ParserDNS(AbstractParser):
     def __init__(self, city, product_name, url):
-        AbstractParser.__init__(self, city, product_name, url)
+        temp_str = product_name
 
-        temp_str = self.product_name
-
-        self.url = url + "search/?q=" + self.product_name.replace(' ', '+')
+        url = url + "search/?q=" + product_name.replace(' ', '+') + "&order=price-asc&stock=soft"
 
         self.product_name = temp_str
 
-        self.driver.get(self.url)
-        self.driver.maximize_window()
-        WebDriverWait(self.driver, 20)
-        self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
-        time.sleep(3)
+        AbstractParser.__init__(self, city, product_name, url)
+
+
 
     def set_city(self):
         city_soup = self.soup.find("a", {"class": "w-choose-city-widget pseudo-link pull-right"})
@@ -80,13 +84,11 @@ class ParserDNS(AbstractParser):
     def read_data(self):
 
         self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
-        is_available_soup - self.soup.find("div" , {"class" : "order-avail-wrap"})
-        if (is_available_soup == None)
-            returned_data_json["is_available"] = False
+        time.sleep(3)
+        is_available_soup = self.soup.find("div" , {"class" : "order-avail-wrap"})
+        if (is_available_soup == None):
+            self.returned_data_json["is_available"] = False
             return 0
-        filter_soup = self.soup.find("span", {"class": "top-filter__selected"})
-        selenium_filter_path = self.to_xpath(filter_soup)
-        ActionChains(self.driver).move_to_element(selenium_filter_path).click().perform()
 
         price_soup = self.soup.find("div", {"class": "product-buy__price"})
         price_text_raw = price_soup.text
@@ -96,8 +98,14 @@ class ParserDNS(AbstractParser):
                 price_text += price_text_raw[i]
         self.returned_data_json["price"] = price_text
 
+class ParserRegard(AbstractParser):
+    def __init__(self, city, product_name, url  ):
+        AbstractParser.__init__(self, city, product_name, url)
 
 
-a = ParserDNS("Москва", "geforce gtx 1650", "https://www.dns-shop.ru/")
+
+
+a = ParserDNS("Москва", "GeForce RTX 3060 Ti", "https://www.dns-shop.ru/")
 a.set_city()
 a.read_data()
+print(a.returned_data_json)
