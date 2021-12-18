@@ -6,7 +6,7 @@ from difflib import SequenceMatcher
 from keyboards import *
 
 
-API_TOKEN = '5072037847:AmongAsEjOjkfrfrDtPqvr-o5adqlNTgb3NdPY2U'
+API_TOKEN = '5072037847:AAEjOjkfrfrDtPqvr-o5adqlNTgb3NdPY2U'
 
 logging.basicConfig(level=logging.INFO)
 
@@ -21,20 +21,48 @@ cur.execute('''CREATE TABLE IF NOT EXISTS Users
 
 users = {}
 
-with open('cities.json', encoding='utf8') as f:
+with open('cities.json', encoding='utf-8') as f:
     cities = json.loads(f.read())
+
+with open('dns_cities.json', encoding='utf-8') as f:
+    dns_cities = json.loads(f.read())
+    print(dns_cities)
 
 
 def find_similar(s):
     most_similar = 0
     city = ''
-    
+
+    s = s.lower()
+
     for i in cities:
-        if most_similar < SequenceMatcher(lambda x: x==" ", i.lower(), s.lower()).ratio():
-            most_similar = SequenceMatcher(lambda x: x==" ", i.lower(), s.lower()).ratio()
+        if s == i.lower():
+            return True
+        if most_similar < SequenceMatcher(lambda x: x==" ", i.lower(), s).ratio():
+            most_similar = SequenceMatcher(lambda x: x==" ", i.lower(), s).ratio()
             city = i
 
-    if SequenceMatcher(lambda x: x==" ", city.lower(), s.lower()).ratio() < 0.8:
+
+    if SequenceMatcher(lambda x: x==" ", city.lower(), s).ratio() < 0.8:
+        return False
+    return city
+
+
+def find_similar(s):
+    most_similar = 0
+    city = ''
+
+    s = s.lower()
+
+    for i in cities:
+        if s == i.lower():
+            return True
+        if most_similar < SequenceMatcher(lambda x: x==" ", i.lower(), s).ratio():
+            most_similar = SequenceMatcher(lambda x: x==" ", i.lower(), s).ratio()
+            city = i
+
+
+    if SequenceMatcher(lambda x: x==" ", city.lower(), s).ratio() < 0.8:
         return False
     return city
 
@@ -62,9 +90,15 @@ async def echo(msg: types.Message):
     user = users[id]
 
     if user[0] == 'city':
-        await msg.answer('Какую видеокарту вы ищите?\nНачать заново: /cancel')
-        user[0] = 'item'
-        user[1] = tx
+        city = find_similar(tx)
+        if city == False:
+            await msg.answer('Я не могу найти такой город. Попробуйте еще раз!\nНачать заново: /cancel')
+        elif city == True:
+            await msg.answer('Какую видеокарту вы ищите?\nНачать заново: /cancel')
+            user[0] = 'item'
+            user[1] = tx
+        else:
+            await msg.answer(f'Вы хотели ввести этот город: {city}\nВерно?\nНачать заново: /cancel', reply_markup=guessed_city_kb)
 
     elif user[0] == 'item':
         await msg.answer('Хотели бы вы выстовить ограничение на максимальную стоимость видеокарты?\nНачать заново: /cancel', reply_markup=max_price_question_kb)
@@ -82,14 +116,22 @@ async def echo(msg: types.Message):
 @dp.callback_query_handler()
 async def handle_callback(query: types.CallbackQuery):
     id = query.from_user.id
+    user = users[id]
+    print(query.data)
     if query.data == 'max_price_question_yes':
         await bot.send_message(id, 'Введите максимальную допуcтимую стоимость (в рублях)\nНачать заново: /cancel')
-        users[id][0] = 'max_price'
+        user[0] = 'max_price'
         await query.answer()
-    else:
-        add_watching(id, users[id][1], users[id][2], 1000000000)
+    elif query.data == 'max_price_question_no':
+        add_watching(id, user[1], user[2], 1000000000)
         await bot.send_message(id, 'Мы начали поиски вашей видеокарты.(^_^)\nНачать заново: /start')
-        users[id] = ['', '', '']
+        user = ['', '', '']
+    elif query.data == 'guessed_city_yes':
+        await bot.send_message(id, 'Какую видеокарту вы ищите?\nНачать заново: /cancel')
+        user[0] = 'item'
+        user[1] = tx
+    elif query.data == 'guessed_city_no':
+        await bot.send_message(id, 'Попробуйте еще раз!\nНачать заново: /cancel')
 
 
 if __name__ == '__main__':
