@@ -7,6 +7,8 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 import json
+import threading
+
 
 def xpath_soup(element):
     components = []
@@ -23,7 +25,7 @@ def xpath_soup(element):
 class AbstractParser():
     def __init__(self, city, product_name, url):
         self.returned_data_json ={
-                "market": "DNS",
+                "market": "dns",
                 "name" : product_name,
                 "is_available" : True,
                 "price" : "0"
@@ -39,7 +41,6 @@ class AbstractParser():
         WebDriverWait(self.driver, 20)
         self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
 
-        time.sleep(3)
 
     def send_data_to_site(self):
         pass
@@ -59,6 +60,7 @@ class AbstractParser():
     def insert_data_to_element(self ,  parametr , paramatr_value , inserted_value ):
         soup_element = self.soup.find("input", {parametr: paramatr_value})
         selenium_path_element = self.to_xpath(soup_element)
+
         ActionChains(self.driver).move_to_element(selenium_path_element).click().send_keys(inserted_value).send_keys(
             Keys.ENTER).perform()
 
@@ -75,6 +77,11 @@ class AbstractParser():
             if (text_raw[i].isnumeric()):
                 text += text_raw[i]
         return text
+    def parse(self):
+        self.send_data_to_site()
+
+        self.read_data()
+
 
 class ParserDNS(AbstractParser):
     def __init__(self, city, product_name):
@@ -85,11 +92,29 @@ class ParserDNS(AbstractParser):
         AbstractParser.__init__(self, city, product_name, url)
 
     def send_data_to_site(self):
+        time.sleep(2)
+
         self.click_element("a" , "class" , "w-choose-city-widget pseudo-link pull-right")
 
         self.update_soup(2)
+        city_soup = self.soup.find("input", {"data-role": "search-city"})
+        selenium_path_element = self.to_xpath(city_soup)
+        ActionChains(self.driver).move_to_element(selenium_path_element).click().send_keys(self.city).perform()
 
-        self.insert_data_to_element("data-role" , "search-city" , self.city)
+        self.update_soup(3)
+
+        all_data_cities = self.soup.find("ul" , {"class" : "cities-search"})
+
+        all_data_cities = all_data_cities.findAll("span" )
+
+        for i in range(len(all_data_cities)):
+            t = all_data_cities[i].text
+
+            if (t.lower() == self.city):
+                data_city_selenium = self.to_xpath(all_data_cities[i])
+                ActionChains(self.driver).move_to_element(data_city_selenium).click().perform()
+                break
+
 
     def read_data(self):
         self.update_soup(3)
@@ -102,7 +127,7 @@ class ParserDNS(AbstractParser):
 
         price_soup = self.soup.find("div", {"class": "product-buy__price"})
         price_text_raw = price_soup.text
-        price_text = raw_text_to_send_num(price_text_raw)
+        price_text = self.raw_text_to_send_num(price_text_raw)
 
         self.returned_data_json["price"] = price_text
 
@@ -112,13 +137,22 @@ class ParserRegard(AbstractParser):
 
         AbstractParser.__init__(self, city, product_name, "https://www.regard.ru/")
 
-        self.returned_data_json["market"] = "Regard"
+        self.returned_data_json["market"] = "regard"
     def send_data_to_site(self):
+        time.sleep(2)
+
         self.insert_data_to_element("id" , "query" , self.product_name)
 
-        self.update_soup(1)
+        self.update_soup(2)
+
+        russia = self.soup.find("span", {"class" : "filter-text"})
+        if (russia != None):
+            russia = russia.find("a")
+            russia_selenium = self.to_xpath(russia)
+            ActionChains(self.driver).move_to_element(russia_selenium).click().perform()
 
         self.click_element("a" , "onclick" , "sorting('price_asc')")
+
 
     def read_data(self):
         self.update_soup(1)
@@ -159,7 +193,29 @@ class ParserCitilink(AbstractParser):
         ActionChains(self.driver).move_to_element(click_city_selenium).click().perform()
 
 
-a = ParserRegard("Москва", "GeForce RTX 3060 Ti")
-a.send_data_to_site()
-a.read_data()
-print(a.returned_data_json)
+with open ('data.json' , encoding = 'utf-8') as f:
+    all_data = json.load(f )
+
+data_to_send = {}
+
+for key in  all_data.keys():
+    data_to_send[key] = data_to_send.get(key , [])
+    for i in range(len(all_data[key])):
+        parser_DNS = ParserDNS(key , all_data[key][i])
+        parser_REGARD = ParserRegard(key , all_data[key][i])
+
+        thread_dns = threading.Thread(target = parser_DNS.parse_site())
+        thread_regard = threading.Thread(target = parser_REGARD.parse_site())
+
+        thread_dns.start()
+        thread_regard.start()
+
+        thread_dns.join()
+        thread_regard.join()
+        
+        if (parser_DNS.returned_data_json["is_available"]):
+            data_to_send[key].append(parser_DNS.returned_data_json)
+        if (parser_REGARD.returned_data_json["is_available"]):
+            data_to_send[key].append(parser_REGARD.returned_data_json)
+with open('sendedData' , 'w' , encoding = "utf-8") as f:
+    json.dump(data_to_send , f , ensure_ascii = False)
