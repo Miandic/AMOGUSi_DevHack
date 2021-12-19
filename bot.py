@@ -68,8 +68,15 @@ def send_json():
 
 
 def add_watching(id, item, city, max_price, shop):
+    cur.execute(f'SELECT * FROM Users WHERE id = {id} AND item = "{item}" AND city = "{city}" AND shop = "{shop}"')
+    items = cur.fetchall()
+    print(items)
+    if items:
+        print('shit')
+        return False
     cur.execute(f'INSERT INTO Users VALUES ({id}, "{item}", "{city}", {max_price}, "{shop}")')
     send_json()
+    return True
 
 
 @dp.message_handler(commands=['start'])
@@ -106,15 +113,25 @@ async def echo(msg: types.Message):
 
     elif user[0] == 'item':
         await msg.answer('Если нужно, выберите предпочтительные сети магазинов', reply_markup=shops_kb(SHOPS))
-        user[3] = SHOPS[:]
+        user[3] = [shop[:] for shop in SHOPS]
         user[1] = tx
 
     elif user[0] == 'max_price':
         if set(tx) <= set('0123456789') and int(tx) < 10000000:
+            wrong = total = 0
             for i in user[3]:
                 if i[2]:
-                    add_watching(id, user[1], user[2], int(tx), i[1])
-            await msg.answer('Мы начали поиски вашей видеокарты.(^_^)\nНачать заново: /start')
+                    total += 1
+                    if not add_watching(id, user[1], user[2], int(tx), i[1]):
+                        wrong += 1
+            if wrong == total:
+                # Не получилось добавить ни одной карты
+                await msg.answer('У вас уже есть такие же фильтры в списке отслеживаемого.')
+            else:
+                if wrong > 0:
+                    # Часть карт не получилось добавить
+                    await msg.answer('Часть фильтров уже есть у вас в списке отслеживаемого, поэтому я не стал их дублировать.\nНовые фильтры были успешно добавлены!')
+                await msg.answer('Мы начали поиски вашей видеокарты.(^_^)')
             users[id] = ['', '', '', None]
         else:
             await msg.answer('Некорректно введена стоимость.')
@@ -139,10 +156,20 @@ async def handle_callback(query: types.CallbackQuery):
         await query.answer()
 
     elif query.data == 'max_price_question_no':
+        wrong = total = 0
         for i in user[3]:
             if i[2]:
-                add_watching(id, user[1], user[2], 1000000000, i[1])
-        await bot.send_message(id, 'Мы начали поиски вашей видеокарты.(^_^)\nНачать заново: /start')
+                total += 1
+                if not add_watching(id, user[1], user[2], 1000000000, i[1]):
+                    wrong += 1
+        if wrong == total:
+            # Не получилось добавить ни одной карты
+            await bot.send_message(id, 'У вас уже есть такие же фильтры в списке отслеживаемого.')
+        else:
+            if wrong > 0:
+                # Часть карт не получилось добавить
+                await bot.send_message(id, 'Часть фильтров уже есть у вас в списке отслеживаемого, поэтому я не стал их дублировать.\nНовые фильтры были успешно добавлены!')
+            await bot.send_message(id, 'Мы начали поиски вашей видеокарты.(^_^)')
         users[id] = ['', '', '', None]
 
     elif query.data == 'guessed_city_yes':
