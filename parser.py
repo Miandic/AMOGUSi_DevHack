@@ -212,7 +212,7 @@ for key in  all_data.keys():
 
         thread_dns.join()
         thread_regard.join()
-        
+
         if (parser_DNS.returned_data_json["is_available"]):
             data_to_send[key].append(parser_DNS.returned_data_json)
         if (parser_REGARD.returned_data_json["is_available"]):
