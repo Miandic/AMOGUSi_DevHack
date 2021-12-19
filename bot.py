@@ -27,7 +27,9 @@ SHOPS = [
 ]
 
 with open('cities.json', encoding='utf-8') as f:
-    cities = json.loads(f.read())
+    cities_orig = json.loads(f.read())
+    cities = [i.lower() for i in cities_orig]
+
 
 with open('dns_cities.json', encoding='utf-8') as f:
     dns_cities = json.loads(f.read())
@@ -81,7 +83,7 @@ def add_watching(id, item, city, max_price, shop):
 
 @dp.message_handler(commands=['start'])
 async def send_welcome(msg: types.Message):
-    await msg.answer('Привет, я парсер Bot!\nИспользуйте кнопки из меню для добавления видеокарты в список отслеживаемого', reply_markup=main_kb)
+    await msg.answer('Здравствуйте, я bot который поможет вам найти то что вы ищите😁!\nИспользуйте кнопки из меню для добавления видеокарты в список отслеживаемого😉!', reply_markup=main_kb)
     users[msg['from']['id']] = ['', '', '', None]
 
 
@@ -99,20 +101,20 @@ async def echo(msg: types.Message):
     if user[0] == 'city':
         city = find_similar(tx)
         if city == False:
-            await msg.answer('Я не могу найти такой город. Попробуйте еще раз!\nНачать заново: /start')
+            await msg.answer('Я не могу найти такой город😭. Попробуйте еще раз😉!\nНачать заново: /start')
         elif city == True:
             if tx.lower() in dns_cities:
-                await msg.answer('Какую видеокарту вы ищите?\nНачать заново: /start')
+                await msg.answer('Какую видеокарту вы ищите🙃?\nНачать заново: /start')
                 user[0] = 'item'
                 user[2] = tx.lower()
             else:
-                await msg.answer('Я не могу найти такой ААА АДНС КТ ДНС НЕТУ В ДНС. Попробуйте еще раз!\nНачать заново: /start')
+                await msg.answer('К сожалению в вашем городе нет подходящих магазинов😭!\nНачать заново: /start')
         else:
-            await msg.answer(f'Вы хотели ввести этот город: {city}\nВерно?\nНачать заново: /start', reply_markup=guessed_city_kb)
+            await msg.answer(f'Я правильно понял город который вы хотели ввести: {city}\n🤨?\nНачать заново: /start', reply_markup=guessed_city_kb)
             user[2] = city.lower()
 
     elif user[0] == 'item':
-        await msg.answer('Если нужно, выберите предпочтительные сети магазинов', reply_markup=shops_kb(SHOPS))
+        await msg.answer('Выберите магазины которые я буду прверять😉!', reply_markup=shops_kb(SHOPS))
         user[3] = [shop[:] for shop in SHOPS]
         user[1] = tx
 
@@ -126,22 +128,25 @@ async def echo(msg: types.Message):
                         wrong += 1
             if wrong == total:
                 # Не получилось добавить ни одной карты
-                await msg.answer('У вас уже есть такие же фильтры в списке отслеживаемого.')
+                await msg.answer('Вы уже добовляли запрос с такими параметрами😠!')
             else:
                 if wrong > 0:
                     # Часть карт не получилось добавить
-                    await msg.answer('Часть фильтров уже есть у вас в списке отслеживаемого, поэтому я не стал их дублировать.\nНовые фильтры были успешно добавлены!')
-                await msg.answer('Мы начали поиски вашей видеокарты.(^_^)')
+                    await msg.answer('Часть фильтров уже есть у вас в списке отслеживаемого, поэтому я не стал их дублировать.\nНовые фильтры были успешно добавлены😉!')
+                await msg.answer('Я начал поиски вашей видеокарты😉!')
             users[id] = ['', '', '', None]
         else:
-            await msg.answer('Некорректно введена стоимость.')
+            await msg.answer('Некорректно введена стоимость😠!')
 
     elif tx == 'Добавить в отслеживаемое':
-        await msg.answer('Укажите город в котором вы ищите видеокарту (или ближаший крупный к вам).\nНачать заново: /start')
+        await msg.answer('Укажите город в котором вы ищите видеокарту (или ближаший крупный к вам)🤗!\nНачать заново: /start')
         users[msg['from']['id']] = ['city', '', '', None]
 
     elif tx == 'Просмотреть список отслеживаемого':
-        pass # TODO
+        cur.execute(f'SELECT * FROM Users WHERE id = {id}')
+        watchlist = cur.fetchall()
+        print(watchlist)
+        await msg.answer('Вот ваш список отслеживаемого😜!\nНажмите на ненужный фильтр чтобы удалить его😜!', reply_markup=watchlist_kb(watchlist))
 
 
 @dp.callback_query_handler()
@@ -151,7 +156,7 @@ async def handle_callback(query: types.CallbackQuery):
     print(query.data)
 
     if query.data == 'max_price_question_yes':
-        await bot.send_message(id, 'Введите максимальную допуcтимую стоимость (в рублях)\nНачать заново: /start')
+        await bot.send_message(id, 'Введите максимально допуcтимую стоимость (в рублях)😎!\nНачать заново: /start')
         user[0] = 'max_price'
         await query.answer()
 
@@ -164,28 +169,28 @@ async def handle_callback(query: types.CallbackQuery):
                     wrong += 1
         if wrong == total:
             # Не получилось добавить ни одной карты
-            await bot.send_message(id, 'У вас уже есть такие же фильтры в списке отслеживаемого.')
+            await bot.send_message(id, 'У вас уже есть такие же фильтры в списке отслеживаемого😝!')
         else:
             if wrong > 0:
                 # Часть карт не получилось добавить
-                await bot.send_message(id, 'Часть фильтров уже есть у вас в списке отслеживаемого, поэтому я не стал их дублировать.\nНовые фильтры были успешно добавлены!')
-            await bot.send_message(id, 'Мы начали поиски вашей видеокарты.(^_^)')
+                await bot.send_message(id, 'Часть фильтров уже есть у вас в списке отслеживаемого, поэтому я не стал их дублировать😎!\nНовые фильтры были успешно добавлены😝!')
+            await bot.send_message(id, 'Мы начали поиски вашей видеокарты🙂!')
         users[id] = ['', '', '', None]
 
     elif query.data == 'guessed_city_yes':
         if user[2].lower() in dns_cities:
-            await bot.send_message(id, 'Какую видеокарту вы ищите?\nНачать заново: /start')
+            await bot.send_message(id, 'Какую видеокарту вы ищите🤨?\nНачать заново: /start')
             user[0] = 'item'
         else:
-            await bot.send_message(id, 'Я не могу найти такой ААА АДНС КТ ДНС НЕТУ В ДНС. Попробуйте еще раз!\nНачать заново: /start')
+            await bot.send_message(id, 'К сожалению в вашем городе нет подходящих магазинов😭!\nНачать заново: /start')
 
     elif query.data == 'guessed_city_no':
-        await bot.send_message(id, 'Попробуйте еще раз!\nНачать заново: /start')
+        await bot.send_message(id, 'Попробуйте еще раз😝!\nНачать заново: /start')
         user[2] = ''
 
     elif query.data == 'shops_continue':
         print(id, query.message.message_id)
-        await bot.edit_message_text('Хотели бы вы выстовить ограничение на максимальную стоимость видеокарты?\nНачать заново: /start', id, query.message.message_id, reply_markup=max_price_question_kb)
+        await bot.edit_message_text('Хотели бы вы выставить ограничение на максимальную стоимость видеокарты🤨?\nНачать заново: /start', id, query.message.message_id, reply_markup=max_price_question_kb)
         user[0] = ''
 
     elif query.data.startswith('shops_'):
@@ -197,6 +202,34 @@ async def handle_callback(query: types.CallbackQuery):
         print(query)
         await bot.edit_message_reply_markup(id, query.message.message_id, reply_markup=shops_kb(user[3]))
 
+    elif query.data.startswith('remove_'):
+        d = 'confirm_' + query.data
+        item = query.data.split('_')
+        item[0] = id
+        item[3] = int(item[3])
+        if item[3] == 1000000000:
+            text = f'{item[1]} — [{SHOP_NAMES[item[4]]}, {cities_orig[cities.index(item[2])]}]'
+        else:
+            text = f'{item[1]} — [{SHOP_NAMES[item[4]]}, {cities_orig[cities.index(item[2])]}, {item[3]}р.]'
+        await bot.edit_message_text(f'Вы уверены что хотите удалить следующий фильтр🤨?\n{text}', id, query.message.message_id, reply_markup=confirm_remove_kb(d))
+
+    elif query.data.startswith('confirm_remove_'):
+        item = query.data.split('_')[1:]
+        item[0] = id
+        item[3] = int(item[3])
+        print(item)
+        cur.execute(f'DELETE FROM Users WHERE id = {item[0]} AND item = "{item[1]}" AND max_price = {item[3]} AND city = "{item[2]}" AND shop = "{item[4]}"')
+        cur.execute(f'SELECT * FROM Users WHERE id = {id}')
+        watchlist = cur.fetchall()
+        print(watchlist)
+        await bot.edit_message_text('Вот ваш список отслеживаемого😜!\nНажмите на ненужный фильтр чтобы удалить его😜!', id, query.message.message_id, reply_markup=watchlist_kb(watchlist))
+        await bot.send_message(id, 'Фильтр удален!')
+
+    elif query.data.startswith('cancel_remove'):
+        cur.execute(f'SELECT * FROM Users WHERE id = {id}')
+        watchlist = cur.fetchall()
+        print(watchlist)
+        await bot.edit_message_text('Вот ваш список отслеживаемого😜!\nНажмите на ненужный фильтр чтобы удалить его😜!', id, query.message.message_id, reply_markup=watchlist_kb(watchlist))
 
 
 if __name__ == '__main__':
