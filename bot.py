@@ -130,7 +130,7 @@ async def handler(msg: types.Message):
             else:
                 await msg.answer('К сожалению в вашем городе нет подходящих магазинов😭!\nНачать заново: /start')
         else:
-            await msg.answer(f'Я правильно понял город который вы хотели ввести: {city}\n🤨?\nНачать заново: /start', reply_markup=guessed_city_kb)
+            await msg.answer(f'Я правильно понял город который вы хотели ввести: {cities_orig[cities.index(city)]}\n🤨?\nНачать заново: /start', reply_markup=guessed_city_kb)
             user[2] = city.lower()
 
     elif user[0] == 'item':
@@ -251,6 +251,7 @@ async def handle_callback(query: types.CallbackQuery):
         print(watchlist)
         await bot.edit_message_text('Вот ваш список отслеживаемого😜!\nНажмите на ненужный фильтр чтобы удалить его😜!', id, query.message.message_id, reply_markup=watchlist_kb(watchlist))
 
+    await query.answer()
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
