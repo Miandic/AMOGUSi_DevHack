@@ -17,9 +17,14 @@ con = sqlite3.connect('users.db')
 cur = con.cursor()
 
 cur.execute('''CREATE TABLE IF NOT EXISTS Users
-               (id INTEGER, item TEXT, city TEXT, max_price INTEGER)''')
+               (id INTEGER, item TEXT, city TEXT, max_price INTEGER, shop TEXT)''')
 
 users = {}
+
+SHOPS = [
+    ['ДНС', 'dns', True], ['Регард', 'regard', True],
+    ['Ситилинк', 'citilink', True], ['Эльдорадо', 'eldorado', True],
+]
 
 with open('cities.json', encoding='utf-8') as f:
     cities = json.loads(f.read())
@@ -53,7 +58,7 @@ def send_json():
 
     for city in cities:
         cur.execute(f'SELECT item from Users WHERE city = "{city[0]}"')
-        items = [i[0] for i in cur.fetchall()]
+        items = list(set([i[0] for i in cur.fetchall()]))
         j[city[0]] = items
 
     print(j)
@@ -62,8 +67,8 @@ def send_json():
         json.dump(j, f, ensure_ascii=False)
 
 
-def add_watching(id, item, city, max_price):
-    cur.execute(f'INSERT INTO Users VALUES ({id}, "{item}", "{city}", {max_price})')
+def add_watching(id, item, city, max_price, shop):
+    cur.execute(f'INSERT INTO Users VALUES ({id}, "{item}", "{city}", {max_price}, "{shop}")')
     send_json()
 
 
@@ -71,7 +76,7 @@ def add_watching(id, item, city, max_price):
 async def send_welcome(msg: types.Message):
     await msg.answer('Привет, я парсер Bot!')
     await msg.answer('Укажите город в котором вы ищите видеокарту (или ближаший крупный к вам).')
-    users[msg['from']['id']] = ['city', '', '']
+    users[msg['from']['id']] = ['city', '', '', None]
 
 
 @dp.message_handler()
@@ -101,14 +106,17 @@ async def echo(msg: types.Message):
             user[2] = city.lower()
 
     elif user[0] == 'item':
-        await msg.answer('Хотели бы вы выстовить ограничение на максимальную стоимость видеокарты?\nНачать заново: /cancel', reply_markup=max_price_question_kb)
+        await msg.answer('Если нужно, выберите предпочтительные сети магазинов', reply_markup=shops_kb(SHOPS))
+        user[3] = SHOPS[:]
         user[1] = tx
 
     elif user[0] == 'max_price':
         if set(tx) <= set('0123456789') and int(tx) < 10000000:
-            add_watching(id, user[1], user[2], int(tx))
+            for i in user[3]:
+                if i[2]:
+                    add_watching(id, user[1], user[2], int(tx), i[1])
             await msg.answer('Мы начали поиски вашей видеокарты.(^_^)\nНачать заново: /start')
-            users[id] = ['', '', '']
+            users[id] = ['', '', '', None]
         else:
             await msg.answer('Некорректно введена стоимость.')
 
@@ -118,23 +126,44 @@ async def handle_callback(query: types.CallbackQuery):
     id = query.from_user.id
     user = users[id]
     print(query.data)
+
     if query.data == 'max_price_question_yes':
         await bot.send_message(id, 'Введите максимальную допуcтимую стоимость (в рублях)\nНачать заново: /cancel')
         user[0] = 'max_price'
         await query.answer()
+
     elif query.data == 'max_price_question_no':
-        add_watching(id, user[1], user[2], 1000000000)
+        for i in user[3]:
+            if i[2]:
+                add_watching(id, user[1], user[2], 1000000000, i[1])
         await bot.send_message(id, 'Мы начали поиски вашей видеокарты.(^_^)\nНачать заново: /start')
-        users[id] = ['', '', '']
+        users[id] = ['', '', '', None]
+
     elif query.data == 'guessed_city_yes':
         if user[2].lower() in dns_cities:
             await bot.send_message(id, 'Какую видеокарту вы ищите?\nНачать заново: /cancel')
             user[0] = 'item'
         else:
             await bot.send_message(id, 'Я не могу найти такой ААА АДНС КТ ДНС НЕТУ В ДНС. Попробуйте еще раз!\nНачать заново: /cancel')
+
     elif query.data == 'guessed_city_no':
         await bot.send_message(id, 'Попробуйте еще раз!\nНачать заново: /cancel')
         user[2] = ''
+
+    elif query.data == 'shops_continue':
+        print(id, query.message.message_id)
+        await bot.edit_message_text('Хотели бы вы выстовить ограничение на максимальную стоимость видеокарты?\nНачать заново: /cancel', id, query.message.message_id, reply_markup=max_price_question_kb)
+        user[0] = ''
+
+    elif query.data.startswith('shops_'):
+        shop, status = query.data.split('_')[1:]
+        for i in range(len(user[3])):
+            if user[3][i][1] == shop:
+                user[3][i][2] = not user[3][i][2]
+                break
+        print(query)
+        await bot.edit_message_reply_markup(id, query.message.message_id, reply_markup=shops_kb(user[3]))
+
 
 
 if __name__ == '__main__':
