@@ -48,6 +48,7 @@ async def send_notifications():
                 else:
                     text = f'{notification[1]} — [{SHOP_NAMES[notification[4]]}, {cities_orig[cities.index(notification[2])]}, {notification[3]}р.]'
                 text = text.replace("-", "\\-")
+                notification = list(notification)
                 notification[2] = notification[2].replace("-", "\\-")
                 await bot.send_message(notification[0], f'Ваш фильтр\n`{text}`\nСработал\\!\n\nВидеокарта *{notification[1]}* доступна в *{notification[2]}* \\({SHOP_NAMES[notification[4]]}\\) по цене *{item["price"]}*р\\.', parse_mode='MarkdownV2')
                 cur.execute(f'DELETE FROM Filters WHERE id = {notification[0]} AND item = "{notification[1]}" AND max_price = {notification[3]} AND city = "{notification[2]}" AND shop = "{notification[4]}"')
