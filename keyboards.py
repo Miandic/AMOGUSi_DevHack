@@ -1,5 +1,9 @@
 from aiogram.types import *
 
+main_kb = ReplyKeyboardMarkup(resize_keyboard=True)
+main_kb.row(KeyboardButton('Добавить в отслеживаемое'))
+main_kb.row(KeyboardButton('Просмотреть список отслеживаемого'))
+
 max_price_question_kb = InlineKeyboardMarkup()
 max_price_question_kb.add(InlineKeyboardButton('Да', callback_data='max_price_question_yes'))
 max_price_question_kb.add(InlineKeyboardButton('Нет', callback_data='max_price_question_no'))

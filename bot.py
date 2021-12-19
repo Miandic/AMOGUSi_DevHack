@@ -72,11 +72,10 @@ def add_watching(id, item, city, max_price, shop):
     send_json()
 
 
-@dp.message_handler(commands=['start', 'cancel'])
+@dp.message_handler(commands=['start'])
 async def send_welcome(msg: types.Message):
-    await msg.answer('Привет, я парсер Bot!')
-    await msg.answer('Укажите город в котором вы ищите видеокарту (или ближаший крупный к вам).')
-    users[msg['from']['id']] = ['city', '', '', None]
+    await msg.answer('Привет, я парсер Bot!\nИспользуйте кнопки из меню для добавления видеокарты в список отслеживаемого', reply_markup=main_kb)
+    users[msg['from']['id']] = ['', '', '', None]
 
 
 @dp.message_handler()
@@ -93,16 +92,16 @@ async def echo(msg: types.Message):
     if user[0] == 'city':
         city = find_similar(tx)
         if city == False:
-            await msg.answer('Я не могу найти такой город. Попробуйте еще раз!\nНачать заново: /cancel')
+            await msg.answer('Я не могу найти такой город. Попробуйте еще раз!\nНачать заново: /start')
         elif city == True:
             if tx.lower() in dns_cities:
-                await msg.answer('Какую видеокарту вы ищите?\nНачать заново: /cancel')
+                await msg.answer('Какую видеокарту вы ищите?\nНачать заново: /start')
                 user[0] = 'item'
                 user[2] = tx.lower()
             else:
-                await msg.answer('Я не могу найти такой ААА АДНС КТ ДНС НЕТУ В ДНС. Попробуйте еще раз!\nНачать заново: /cancel')
+                await msg.answer('Я не могу найти такой ААА АДНС КТ ДНС НЕТУ В ДНС. Попробуйте еще раз!\nНачать заново: /start')
         else:
-            await msg.answer(f'Вы хотели ввести этот город: {city}\nВерно?\nНачать заново: /cancel', reply_markup=guessed_city_kb)
+            await msg.answer(f'Вы хотели ввести этот город: {city}\nВерно?\nНачать заново: /start', reply_markup=guessed_city_kb)
             user[2] = city.lower()
 
     elif user[0] == 'item':
@@ -120,6 +119,13 @@ async def echo(msg: types.Message):
         else:
             await msg.answer('Некорректно введена стоимость.')
 
+    elif tx == 'Добавить в отслеживаемое':
+        await msg.answer('Укажите город в котором вы ищите видеокарту (или ближаший крупный к вам).\nНачать заново: /start')
+        users[msg['from']['id']] = ['city', '', '', None]
+
+    elif tx == 'Просмотреть список отслеживаемого':
+        pass # TODO
+
 
 @dp.callback_query_handler()
 async def handle_callback(query: types.CallbackQuery):
@@ -128,7 +134,7 @@ async def handle_callback(query: types.CallbackQuery):
     print(query.data)
 
     if query.data == 'max_price_question_yes':
-        await bot.send_message(id, 'Введите максимальную допуcтимую стоимость (в рублях)\nНачать заново: /cancel')
+        await bot.send_message(id, 'Введите максимальную допуcтимую стоимость (в рублях)\nНачать заново: /start')
         user[0] = 'max_price'
         await query.answer()
 
@@ -141,18 +147,18 @@ async def handle_callback(query: types.CallbackQuery):
 
     elif query.data == 'guessed_city_yes':
         if user[2].lower() in dns_cities:
-            await bot.send_message(id, 'Какую видеокарту вы ищите?\nНачать заново: /cancel')
+            await bot.send_message(id, 'Какую видеокарту вы ищите?\nНачать заново: /start')
             user[0] = 'item'
         else:
-            await bot.send_message(id, 'Я не могу найти такой ААА АДНС КТ ДНС НЕТУ В ДНС. Попробуйте еще раз!\nНачать заново: /cancel')
+            await bot.send_message(id, 'Я не могу найти такой ААА АДНС КТ ДНС НЕТУ В ДНС. Попробуйте еще раз!\nНачать заново: /start')
 
     elif query.data == 'guessed_city_no':
-        await bot.send_message(id, 'Попробуйте еще раз!\nНачать заново: /cancel')
+        await bot.send_message(id, 'Попробуйте еще раз!\nНачать заново: /start')
         user[2] = ''
 
     elif query.data == 'shops_continue':
         print(id, query.message.message_id)
-        await bot.edit_message_text('Хотели бы вы выстовить ограничение на максимальную стоимость видеокарты?\nНачать заново: /cancel', id, query.message.message_id, reply_markup=max_price_question_kb)
+        await bot.edit_message_text('Хотели бы вы выстовить ограничение на максимальную стоимость видеокарты?\nНачать заново: /start', id, query.message.message_id, reply_markup=max_price_question_kb)
         user[0] = ''
 
     elif query.data.startswith('shops_'):
