@@ -40,11 +40,9 @@ async def send_notifications():
         sended_data = json.load(f)
     for city in sended_data:
         for item in sended_data[city]:
-            print(item)
             cur.execute(f'SELECT * FROM Filters WHERE shop = "{item["market"]}" AND item = "{item["name"]}" AND max_price >= {item["price"]}')
 
             for notification in cur.fetchall():
-                print('not', notification)
                 if notification[3] == 1000000000:
                     text = f'{notification[1]} — [{SHOP_NAMES[notification[4]]}, {cities_orig[cities.index(notification[2])]}]'
                 else:
@@ -81,8 +79,6 @@ def send_json():
         items = list(set([i[0] for i in cur.fetchall()]))
         j[city[0]] = items
 
-    print(j)
-
     with open('data.json', 'w', encoding='utf-8') as f:
         json.dump(j, f, ensure_ascii=False)
 
@@ -90,9 +86,7 @@ def send_json():
 def add_watching(id, item, city, max_price, shop):
     cur.execute(f'SELECT * FROM Filters WHERE id = {id} AND item = "{item}" AND city = "{city}" AND shop = "{shop}"')
     items = cur.fetchall()
-    print(items)
     if items:
-        print('shit')
         return False
     cur.execute(f'INSERT INTO Filters VALUES ({id}, "{item}", "{city}", {max_price}, "{shop}")')
     send_json()
@@ -110,7 +104,6 @@ async def handler(msg: types.Message):
     await send_notifications()
 
     id, tx = msg['from'].id, msg.text
-    print(id, tx)
 
     if id not in users:
         await send_welcome(msg)
@@ -165,7 +158,6 @@ async def handler(msg: types.Message):
     elif tx == 'Просмотреть список отслеживаемого':
         cur.execute(f'SELECT * FROM Filters WHERE id = {id}')
         watchlist = cur.fetchall()
-        print(watchlist)
         await msg.answer('Вот ваш список отслеживаемого😜!\nНажмите на ненужный фильтр чтобы удалить его😜!', reply_markup=watchlist_kb(watchlist))
 
 
@@ -173,7 +165,6 @@ async def handler(msg: types.Message):
 async def handle_callback(query: types.CallbackQuery):
     id = query.from_user.id
     user = users[id]
-    print(query.data)
 
     if query.data == 'max_price_question_yes':
         await bot.send_message(id, 'Введите максимально допуcтимую стоимость (в рублях)😎!\nНачать заново: /start')
@@ -209,7 +200,6 @@ async def handle_callback(query: types.CallbackQuery):
         user[2] = ''
 
     elif query.data == 'shops_continue':
-        print(id, query.message.message_id)
         await bot.edit_message_text('Хотели бы вы выставить ограничение на максимальную стоимость видеокарты🤨?\nНачать заново: /start', id, query.message.message_id, reply_markup=max_price_question_kb)
         user[0] = ''
 
@@ -219,7 +209,6 @@ async def handle_callback(query: types.CallbackQuery):
             if user[3][i][1] == shop:
                 user[3][i][2] = not user[3][i][2]
                 break
-        print(query)
         await bot.edit_message_reply_markup(id, query.message.message_id, reply_markup=shops_kb(user[3]))
 
     elif query.data.startswith('remove_'):
@@ -237,18 +226,15 @@ async def handle_callback(query: types.CallbackQuery):
         item = query.data.split('_')[1:]
         item[0] = id
         item[3] = int(item[3])
-        print(item)
         cur.execute(f'DELETE FROM Filters WHERE id = {item[0]} AND item = "{item[1]}" AND max_price = {item[3]} AND city = "{item[2]}" AND shop = "{item[4]}"')
         cur.execute(f'SELECT * FROM Filters WHERE id = {id}')
         watchlist = cur.fetchall()
-        print(watchlist)
         await bot.edit_message_text('Вот ваш список отслеживаемого😜!\nНажмите на ненужный фильтр чтобы удалить его😜!', id, query.message.message_id, reply_markup=watchlist_kb(watchlist))
         await bot.send_message(id, 'Фильтр удален!')
 
     elif query.data.startswith('cancel_remove'):
         cur.execute(f'SELECT * FROM Filters WHERE id = {id}')
         watchlist = cur.fetchall()
-        print(watchlist)
         await bot.edit_message_text('Вот ваш список отслеживаемого😜!\nНажмите на ненужный фильтр чтобы удалить его😜!', id, query.message.message_id, reply_markup=watchlist_kb(watchlist))
 
     await query.answer()
