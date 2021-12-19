@@ -51,6 +51,7 @@ async def send_notifications():
                 notification[2] = notification[2].replace("-", "\\-")
                 await bot.send_message(notification[0], f'Ваш фильтр\n`{text}`\nСработал\\!\n\nВидеокарта *{notification[1]}* доступна в *{notification[2]}* \\({SHOP_NAMES[notification[4]]}\\) по цене *{item["price"]}*р\\.', parse_mode='MarkdownV2')
                 cur.execute(f'DELETE FROM Filters WHERE id = {notification[0]} AND item = "{notification[1]}" AND max_price = {notification[3]} AND city = "{notification[2]}" AND shop = "{notification[4]}"')
+                con.commit()
 
 
 def find_similar(s):
@@ -91,6 +92,7 @@ def add_watching(id, item, city, max_price, shop):
     if items:
         return False
     cur.execute(f'INSERT INTO Filters VALUES ({id}, "{item}", "{city}", {max_price}, "{shop}")')
+    con.commit()
     send_json()
     return True
 
@@ -229,6 +231,7 @@ async def handle_callback(query: types.CallbackQuery):
         item[0] = id
         item[3] = int(item[3])
         cur.execute(f'DELETE FROM Filters WHERE id = {item[0]} AND item = "{item[1]}" AND max_price = {item[3]} AND city = "{item[2]}" AND shop = "{item[4]}"')
+        con.commit()
         cur.execute(f'SELECT * FROM Filters WHERE id = {id}')
         watchlist = cur.fetchall()
         await bot.edit_message_text('Вот ваш список отслеживаемого😜!\nНажмите на ненужный фильтр чтобы удалить его😜!', id, query.message.message_id, reply_markup=watchlist_kb(watchlist))
