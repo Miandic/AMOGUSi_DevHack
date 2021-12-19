@@ -54,7 +54,21 @@ class AbstractParser():
 
     def read_data(self):
         pass
+    def click_element(self , element_to_find, parametr , paramatr_value ):
 
+        soup_element = self.soup.find(element_to_find, {parametr: paramatr_value})
+        selenium_path_element = self.to_xpath(soup_element)
+        ActionChains(self.driver).move_to_element(selenium_path_element).click().perform()
+
+    def insert_data_to_element(self ,  parametr , paramatr_value , inserted_value ):
+        soup_element = self.soup.find("input", {parametr: paramatr_value})
+        selenium_path_element = self.to_xpath(soup_element)
+        ActionChains(self.driver).move_to_element(selenium_path_element).click().send_keys(inserted_value).send_keys(
+            Keys.ENTER).perform()
+
+    def parse_site(self):
+        self.send_data_to_site()
+        self.read_data()
 
 class ParserDNS(AbstractParser):
     def __init__(self, city, product_name, url):
@@ -69,24 +83,20 @@ class ParserDNS(AbstractParser):
 
 
     def send_data_to_site(self):
-        city_soup = self.soup.find("a", {"class": "w-choose-city-widget pseudo-link pull-right"})
-        selenium_path_element = self.to_xpath(city_soup)
-        ActionChains(self.driver).move_to_element(selenium_path_element).click().perform()
+        self.click_element("a" , "class" , "w-choose-city-widget pseudo-link pull-right")
 
         time.sleep(2)
         self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
 
-        city_soup = self.soup.find("input", {"data-role": "search-city"})
-        selenium_path_element = self.to_xpath(city_soup)
-        ActionChains(self.driver).move_to_element(selenium_path_element).click().send_keys(self.city).send_keys(
-            Keys.ENTER).perform()
+        self.insert_data_to_element("data-role" , "search-city" , self.city)
 
     def read_data(self):
-
-        self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
         time.sleep(3)
-        is_available_soup = self.soup.find("div" , {"class" : "order-avail-wrap"})
-        if (is_available_soup == None):
+        self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+
+        is_available_soup = self.soup.find("span" , {"class" : "available"})
+
+        if (is_available_soup.text != "В наличии: " ):
             self.returned_data_json["is_available"] = False
             return 0
 
@@ -157,11 +167,11 @@ class ParserCitilink(AbstractParser):
         click_city_soup = self.soup.find("span" , {"class" :"CitiesSearch__highlight" })
         click_city_selenium = self.to_xpath(click_city_soup)
         ActionChains(self.driver).move_to_element(click_city_selenium).click().perform()
-        
 
 
 
-a = ParserCitilink("Москва", "GeForce RTX 3060 Ti", "https://www.citilink.ru/")
+
+a = ParserDNS("Москва", "GeForce RTX 3060 Ti", "https://www.dns-shop.ru/")
 a.send_data_to_site()
-#a.read_data()
+a.read_data()
 print(a.returned_data_json)
