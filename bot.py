@@ -6,7 +6,7 @@ from difflib import SequenceMatcher
 from keyboards import *
 
 
-API_TOKEN = '5072037847:AAEjOjkfrfrDtPqvr-o5adqlNTgb3NdPY2U'
+API_TOKEN = '5031794729:AAFJxxgyXcozo8nGm57ti-y8raMMMOVBj-o'
 
 logging.basicConfig(level=logging.INFO)
 
@@ -16,7 +16,7 @@ dp = Dispatcher(bot)
 con = sqlite3.connect('users.db')
 cur = con.cursor()
 
-cur.execute('''CREATE TABLE IF NOT EXISTS Users
+cur.execute('''CREATE TABLE IF NOT EXISTS Filters
                (id INTEGER, item TEXT, city TEXT, max_price INTEGER, shop TEXT)''')
 
 users = {}
@@ -33,6 +33,24 @@ with open('cities.json', encoding='utf-8') as f:
 
 with open('dns_cities.json', encoding='utf-8') as f:
     dns_cities = json.loads(f.read())
+
+
+async def send_notifications():
+    with open('sendedData.json', encoding='utf-8') as f:
+        sended_data = json.load(f)
+    for city in sended_data:
+        for item in sended_data[city]:
+            print(item)
+            cur.execute(f'SELECT * FROM Filters WHERE shop = "{item["market"]}" AND item = "{item["name"]}" AND max_price >= {item["price"]}')
+
+            for notification in cur.fetchall():
+                print('not', notification)
+                if notification[3] == 1000000000:
+                    text = f'{notification[1]} — [{SHOP_NAMES[notification[4]]}, {cities_orig[cities.index(notification[2])]}]'
+                else:
+                    text = f'{notification[1]} — [{SHOP_NAMES[notification[4]]}, {cities_orig[cities.index(notification[2])]}, {notification[3]}р.]'
+                await bot.send_message(notification[0], f'Ваш фильтр\n`{text}`\nСработал\\!\n\nВидеокарта *{notification[1]}* доступна в *{notification[2]}* \\({SHOP_NAMES[notification[4]]}\\) по цене *{item["price"]}*р\\.', parse_mode='MarkdownV2')
+                cur.execute(f'DELETE FROM Filters WHERE id = {notification[0]} AND item = "{notification[1]}" AND max_price = {notification[3]} AND city = "{notification[2]}" AND shop = "{notification[4]}"')
 
 
 def find_similar(s):
@@ -54,12 +72,12 @@ def find_similar(s):
 
 
 def send_json():
-    cur.execute(f'SELECT city from Users')
+    cur.execute(f'SELECT city FROM Filters')
     cities = cur.fetchall()
     j = {}
 
     for city in cities:
-        cur.execute(f'SELECT item from Users WHERE city = "{city[0]}"')
+        cur.execute(f'SELECT item FROM Filters WHERE city = "{city[0]}"')
         items = list(set([i[0] for i in cur.fetchall()]))
         j[city[0]] = items
 
@@ -70,13 +88,13 @@ def send_json():
 
 
 def add_watching(id, item, city, max_price, shop):
-    cur.execute(f'SELECT * FROM Users WHERE id = {id} AND item = "{item}" AND city = "{city}" AND shop = "{shop}"')
+    cur.execute(f'SELECT * FROM Filters WHERE id = {id} AND item = "{item}" AND city = "{city}" AND shop = "{shop}"')
     items = cur.fetchall()
     print(items)
     if items:
         print('shit')
         return False
-    cur.execute(f'INSERT INTO Users VALUES ({id}, "{item}", "{city}", {max_price}, "{shop}")')
+    cur.execute(f'INSERT INTO Filters VALUES ({id}, "{item}", "{city}", {max_price}, "{shop}")')
     send_json()
     return True
 
@@ -88,7 +106,9 @@ async def send_welcome(msg: types.Message):
 
 
 @dp.message_handler()
-async def echo(msg: types.Message):
+async def handler(msg: types.Message):
+    await send_notifications()
+
     id, tx = msg['from'].id, msg.text
     print(id, tx)
 
@@ -143,7 +163,7 @@ async def echo(msg: types.Message):
         users[msg['from']['id']] = ['city', '', '', None]
 
     elif tx == 'Просмотреть список отслеживаемого':
-        cur.execute(f'SELECT * FROM Users WHERE id = {id}')
+        cur.execute(f'SELECT * FROM Filters WHERE id = {id}')
         watchlist = cur.fetchall()
         print(watchlist)
         await msg.answer('Вот ваш список отслеживаемого😜!\nНажмите на ненужный фильтр чтобы удалить его😜!', reply_markup=watchlist_kb(watchlist))
@@ -218,15 +238,15 @@ async def handle_callback(query: types.CallbackQuery):
         item[0] = id
         item[3] = int(item[3])
         print(item)
-        cur.execute(f'DELETE FROM Users WHERE id = {item[0]} AND item = "{item[1]}" AND max_price = {item[3]} AND city = "{item[2]}" AND shop = "{item[4]}"')
-        cur.execute(f'SELECT * FROM Users WHERE id = {id}')
+        cur.execute(f'DELETE FROM Filters WHERE id = {item[0]} AND item = "{item[1]}" AND max_price = {item[3]} AND city = "{item[2]}" AND shop = "{item[4]}"')
+        cur.execute(f'SELECT * FROM Filters WHERE id = {id}')
         watchlist = cur.fetchall()
         print(watchlist)
         await bot.edit_message_text('Вот ваш список отслеживаемого😜!\nНажмите на ненужный фильтр чтобы удалить его😜!', id, query.message.message_id, reply_markup=watchlist_kb(watchlist))
         await bot.send_message(id, 'Фильтр удален!')
 
     elif query.data.startswith('cancel_remove'):
-        cur.execute(f'SELECT * FROM Users WHERE id = {id}')
+        cur.execute(f'SELECT * FROM Filters WHERE id = {id}')
         watchlist = cur.fetchall()
         print(watchlist)
         await bot.edit_message_text('Вот ваш список отслеживаемого😜!\nНажмите на ненужный фильтр чтобы удалить его😜!', id, query.message.message_id, reply_markup=watchlist_kb(watchlist))
