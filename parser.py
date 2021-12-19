@@ -121,7 +121,7 @@ class ParserDNS(AbstractParser):
 
         is_available_soup = self.soup.find("span" , {"class" : "available"})
 
-        if (is_available_soup.text != "В наличии: " ):
+        if (is_available_soup == None or is_available_soup.text != "В наличии: "):
             self.returned_data_json["is_available"] = False
             return 0
 
@@ -217,5 +217,5 @@ for key in  all_data.keys():
             data_to_send[key].append(parser_DNS.returned_data_json)
         if (parser_REGARD.returned_data_json["is_available"]):
             data_to_send[key].append(parser_REGARD.returned_data_json)
-with open('sendedData' , 'w' , encoding = "utf-8") as f:
+with open('sendedData.json' , 'w' , encoding = "utf-8") as f:
     json.dump(data_to_send , f , ensure_ascii = False)
